@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - '.github/workflows/**'
       - '**/Dockerfile'
+      - '.github/workflows/**'
 
 permissions:
   contents: write
@@ -18,39 +18,44 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
     steps:
-      - name: Process Dependabot Pull Request
+
+      - name: Auto-Merge Dependabot PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
-          # Approve and merge Dependabot PR automatically
-          gh pr review ${{ github.event.pull_request.html_url }} --approve
-          gh pr edit ${{ github.event.pull_request.html_url }} --add-label auto-merged
-          
-          for i in {1..5}; do
-            gh pr merge ${{ github.event.pull_request.html_url }} --rebase && break || sleep 10
-          done
+          set -e
 
-      - name: Get Dependency Metadata
-        id: metadata
+          gh pr review "$PR_URL" --approve
+          gh pr edit "$PR_URL" --add-label auto
+
+          for i in {1..5}; do
+            gh pr merge "$PR_URL" --rebase && break || sleep 10
+          done
+          
+          echo "==> Auto-merged PR"
+
+      - name: Fetch Dependabot Metadata
+        id: dependabot
         uses: dependabot/fetch-metadata@v2
 
       - name: Checkout Repository
-        if: steps.metadata.outputs.package-ecosystem == 'docker'
+        if: steps.dependabot.outputs.package-ecosystem == 'docker'
         uses: actions/checkout@v5
         with:
           ref: main
           fetch-depth: 0
 
       - name: Update Version and Changelog
-        if: steps.metadata.outputs.package-ecosystem == 'docker'
+        if: steps.dependabot.outputs.package-ecosystem == 'docker'
         run: |
           # Extract package info from Dependabot metadata
-          PACKAGE_NAME="${{ steps.metadata.outputs.dependency-names }}"
-          NEW_VERSION="${{ steps.metadata.outputs.new-version }}"
-          DIRECTORY=".${{ steps.metadata.outputs.directory }}"
+          PACKAGE_NAME="${{ steps.dependabot.outputs.dependency-names }}"
+          NEW_VERSION="${{ steps.dependabot.outputs.new-version }}"
+          DIRECTORY=".${{ steps.dependabot.outputs.directory }}"
           
           # Update files with new version
-          sed -i "s/version: .*/version: $NEW_VERSION/" "$DIRECTORY/config.yaml"
+          yq eval -i ".version = \"$NEW_VERSION\"" $DIRECTORY/config.yaml
           
           # Prepare changelog entry
           NEW_ENTRY="## $NEW_VERSION\n- Update $PACKAGE_NAME to $NEW_VERSION\n"
@@ -58,25 +63,31 @@ jobs:
           # Prepend new changelog entry
           echo -e "$NEW_ENTRY$(cat $DIRECTORY/CHANGELOG.md)" > "$DIRECTORY/CHANGELOG.md"
 
-      - name: Validate Add-on Configuration
-        if: steps.metadata.outputs.package-ecosystem == 'docker'
+          echo "==> Updated $PACKAGE_NAME to $NEW_VERSION"
+
+      - name: Lint Addon Configuration
+        if: steps.dependabot.outputs.package-ecosystem == 'docker'
         uses: frenck/action-addon-linter@v2
         with:
-          path: .${{ steps.metadata.outputs.directory }}
+          path: .${{ steps.dependabot.outputs.directory }}
 
-      - name: Commit Changes
-        if: steps.metadata.outputs.package-ecosystem == 'docker'
+      - name: Commit and Push Version Update
+        if: steps.dependabot.outputs.package-ecosystem == 'docker'
         run: |
+          set -e
+
           # Extract package info from Dependabot metadata
-          NEW_VERSION="${{ steps.metadata.outputs.new-version }}"
-          DIRECTORY=".${{ steps.metadata.outputs.directory }}"
+          NEW_VERSION="${{ steps.dependabot.outputs.new-version }}"
+          DIRECTORY=".${{ steps.dependabot.outputs.directory }}"
           
-          # Configure git and commit changes
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
           git add "$DIRECTORY/config.yaml" "$DIRECTORY/CHANGELOG.md"
           git commit -m "Bump version to $NEW_VERSION"
           
           for i in {1..5}; do
             git pull origin main --rebase && git push && break || sleep 10
           done
+
+          echo "==> Published $NEW_VERSION"
