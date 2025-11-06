@@ -6,9 +6,6 @@ updates:
       interval: weekly
   - package-ecosystem: docker
     directories:
-      - ghostscript
-      - gutenprint
-      - hplip
-      - postscript
+      - "**/*"
     schedule:
       interval: weekly
