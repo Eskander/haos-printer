@@ -1,4 +1,4 @@
-# Network Printing for Home Assistant
+# Network Printing for Home Assistant OS
 
 WIP - Experimental
 - Alpha quality
