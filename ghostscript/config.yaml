@@ -1,7 +1,7 @@
 name: Ghostscript Printer
 version: 10.05.1-1-edge
 slug: ghostscript-printer
-description: Supports printers using Ghostscript printer drivers and some extra filters
+description: Printers using Ghostscript printer drivers and extra filters
 url: https://github.com/Eskander/haos-printer
 arch:
   - amd64
