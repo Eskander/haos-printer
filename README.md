@@ -1,3 +1,6 @@
 # Network Printing for Home Assistant
 
-WIP - BROKEN - Do not use
+WIP - Experimental
+- Alpha quality
+- Not recommended for production
+- Expect crashes and unresponsiveness
