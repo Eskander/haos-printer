@@ -41,7 +41,7 @@ jobs:
 
       - name: Checkout Repository
         if: steps.dependabot.outputs.package-ecosystem == 'docker'
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: main
           fetch-depth: 0
