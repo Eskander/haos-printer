@@ -8,6 +8,10 @@ on:
       - '**/Dockerfile'
       - '.github/workflows/**'
 
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 permissions:
   contents: write
   pull-requests: write
